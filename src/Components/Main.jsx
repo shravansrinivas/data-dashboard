@@ -717,6 +717,7 @@ class App extends React.Component {
       .attr("width", width)
       .attr("height", height)
       .append("g")
+      
       .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")")
       .attr("fill", "black");
     // Create dummy data
@@ -742,7 +743,7 @@ class App extends React.Component {
     // Now I know that group A goes from 0 degrees to x degrees and so on.
 
     // shape helper to build arcs:
-    var arcGenerator = window.d3.arc().innerRadius(0).outerRadius(radius);
+    var arcGenerator = window.d3.arc().innerRadius(50).outerRadius(radius);
 
     // Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
     svg
@@ -1109,10 +1110,10 @@ class App extends React.Component {
       })
       .attr("width", x.bandwidth());
   }
-  updateChartFour(data) {
+updateChartFour(data) {
     var d3 = window.d3;
-    var margin = { top: 10, right: 30, bottom: 30, left: 60 },
-      width = 240 - margin.left - margin.right,
+    var margin = { top: 10, right: 30, bottom: 30, left: 20 },
+      width = 260 - margin.left - margin.right,
       height = 200 - margin.top - margin.bottom;
 
     // append the svg object to the body of the page
@@ -1125,8 +1126,8 @@ class App extends React.Component {
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
     //Read the data
-    var margin = { top: 10, right: 30, bottom: 30, left: 60 },
-      width = 240 - margin.left - margin.right,
+    var margin = { top: 10, right: 30, bottom: 30, left: 15 },
+      width = 260 - margin.left - margin.right,
       height = 200 - margin.top - margin.bottom;
 
     // append the svg object to the body of the page
@@ -1136,7 +1137,8 @@ class App extends React.Component {
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
       .append("g")
-      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+      ;
 
     let lin = [];
     let months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -1176,18 +1178,21 @@ class App extends React.Component {
     });
     console.log(lin);
     var x = d3
-      .scaleLinear()
-      .domain(
-        d3.extent(lin, function (d) {
-          console.log("m----", d.month, "---", d.value);
-          return d.month;
-        })
-      )
+      .scaleBand()
+      .domain(monthName)
       .range([0, width]);
     svg
       .append("g")
       .attr("transform", "translate(0," + height + ")")
-      .call(d3.axisBottom(x));
+      .call(d3.axisBottom(x))
+      .selectAll("text")
+      .attr("y", 0)
+      .attr("x", 9)
+      .attr("dy", ".30em")
+      .attr("transform", "rotate(35)")
+      .style("font-size", "10px")
+      .style("text-anchor", "start")
+      ;;
 
     // Add Y axis
     var y = d3
@@ -1216,8 +1221,8 @@ class App extends React.Component {
         d3
           .line()
           .x(function (d) {
-            console.log("m----", d.month);
-            return x(d.month+' ');
+            console.log("m----", monthName[d.month-1]);
+            return x(monthName[d.month-1]);
           })
           .y(function (d) {
             return y(d.value);
@@ -2278,7 +2283,7 @@ class App extends React.Component {
                         <svg width="240" height="200" id="viz"></svg>
                       </div>
                       <div className="x2item" id="line-chart">
-                        <svg width="240" height="200" id="ziz"></svg>
+                        <svg width="260" height="200" id="ziz"></svg>
                       </div>
 
                       <div className="bottom-left" id='bottom-one'>
