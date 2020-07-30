@@ -62,6 +62,7 @@ const server = async () => {
 class App extends React.Component {
   constructor(props) {
     super(props);
+    window.hellocomponent=this;
     this.state = {
       sunbData: {},
       isLoading: true,
@@ -111,7 +112,9 @@ class App extends React.Component {
       //lob, phase, solutionTechnologiesUsed, capabilities,
     };
   }
-
+  refreshdata(){
+    console.log('entered');
+  }
   componentDidMount() {
     this.filterOut();
     server().then((data) => {
@@ -1062,9 +1065,9 @@ class App extends React.Component {
       .selectAll("text")
     .attr("y", 0)
     .attr("x", 9)
-    .attr("dy", ".30em")
-    .attr("transform", "rotate(35)")
-    .style("font-size", "10px")
+    .attr("dy", "3.0em")
+    //.attr("transform", "rotate(35)")
+    .style("font-size", "8px")
     .style("text-anchor", "start")
     ;
 
@@ -1610,6 +1613,7 @@ updateChartFour(data) {
 
         // for(let i=0;i<d.height;i++ ){
         console.log("This is refiltered data", realData);
+        window.hellocomponent.updateCharts();
         // }
       }
 
@@ -2050,14 +2054,16 @@ updateChartFour(data) {
   }
   updateCharts() {
     // burstDataReady();
-    let data = realData;
-    this.computeKpis(data);
-    this.sunChartD3(data);
+
+    //let data = realData;
+    console.log(realData);
+    this.computeKpis(realData);
+    this.sunChartD3(realData);
     //this.plotSunchart();
-    this.updateChartOne(data);
-    this.updateChartTwo(data);
-    this.updateChartThree(data);
-    this.updateChartFour(data);
+    this.updateChartOne(realData);
+    this.updateChartTwo(realData);
+    this.updateChartThree(realData);
+    this.updateChartFour(realData);
   }
 
   render() {
