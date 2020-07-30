@@ -1609,11 +1609,17 @@ updateChartFour(data) {
       //
 
      function refreshBurst(d) {
-        realData = d.data.filteredData;
+       console.log(d.data);
+       if(d.data.filteredData===undefined)
+       {realData=mockData;}
+
+      else {if(d.data.filteredData.length!==0)
+        {realData = d.data.filteredData;
 
         // for(let i=0;i<d.height;i++ ){
         console.log("This is refiltered data", realData);
-        window.hellocomponent.updateCharts();
+        }}
+        window.hellocomponent.exceptSun();
         // }
       }
 
@@ -2029,7 +2035,7 @@ updateChartFour(data) {
       return;
     }
     d3.selectAll("svg > *").remove();
-    d3.select("#ziz").empty();
+    //d3.select("#ziz").empty();
     console.log(realData);
     setTimeout(() => {
       this.computeKpis(realData);
@@ -2052,8 +2058,34 @@ updateChartFour(data) {
       this.computeKpis(mockData);
     }, 1000);
   }
+  exceptSun(){
+    var d3=window.d3;
+    //d3.selectAll("svg > #line-chart #ziz #viz #stacked-bar").remove();
+    d3.select("#ziz").selectAll("*").remove();
+    d3.select("#viz").selectAll("*").remove();
+    d3.select("#stacked-bar").selectAll("*").remove();
+    d3.select("#my_dataviz").selectAll("*").remove();
+    
+    //d3.select("#line-chart").selectAll("*").remove();
+    // d3.select("#ziz>svg>*").remove();
+    // d3.select("#line-chart>svg>*").remove();
+    // d3.select("#viz").remove();
+    // d3.select("#my_dataviz").remove();
+    // d3.selectAll("svg > *").remove();
+    // this.computeKpis(realData);
+    //this.sunChartD3(realData);
+    //this.plotSunchart();
+    this.computeKpis(realData);
+    this.updateChartOne(realData);
+    this.updateChartTwo(realData);
+    this.updateChartThree(realData);
+    this.updateChartFour(realData);
+  }
   updateCharts() {
+    var d3=window.d3;
+
     // burstDataReady();
+    d3.selectAll("svg > *").remove();
 
     //let data = realData;
     console.log(realData);
