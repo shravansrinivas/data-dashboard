@@ -17,6 +17,7 @@ import {
   Jumbotron,
 } from "react-bootstrap";
 import { select } from "d3";
+import { act } from "react-dom/test-utils";
 var mockData = require("./mockupData.json").data;
 var realData = mockData;
 var sundata = {};
@@ -30,6 +31,7 @@ const server = async () => {
     }, 1000);
   });
 };
+
 // var sundata = {
 //   name: "root",
 //   color: "brown",
@@ -109,20 +111,23 @@ class App extends React.Component {
       //lob, phase, solutionTechnologiesUsed, capabilities,
     };
   }
+
   componentDidMount() {
+    this.filterOut();
     server().then((data) => {
       let lob = [];
       let phase = [];
       let solutionTechnologiesUsed = [];
       let capabilities = [];
       realData.forEach((rec) => {
-        if (lob.indexOf(rec.lineOfBusiness) == -1) lob.push(rec.lineOfBusiness);
-        if (phase.indexOf(rec.phase) == -1) phase.push(rec.phase);
+        if (lob.indexOf(rec.lineOfBusiness) === -1)
+          lob.push(rec.lineOfBusiness);
+        if (phase.indexOf(rec.phase) === -1) phase.push(rec.phase);
         if (
-          solutionTechnologiesUsed.indexOf(rec.solutionTechnologiesUsed) == -1
+          solutionTechnologiesUsed.indexOf(rec.solutionTechnologiesUsed) === -1
         )
           solutionTechnologiesUsed.push(rec.solutionTechnologiesUsed);
-        if (capabilities.indexOf(rec.capabilities) == -1)
+        if (capabilities.indexOf(rec.capabilities) === -1)
           capabilities.push(rec.capabilities);
       });
       console.log(lob, phase, solutionTechnologiesUsed, capabilities);
@@ -155,6 +160,7 @@ class App extends React.Component {
 
       this.updateChartOne(realData);
       this.updateChartTwo(realData);
+      // this.updateChartThree(realData);
       this.updateChartThree(realData);
       this.updateChartFour(realData);
       this.sunChartD3(realData);
@@ -677,7 +683,8 @@ class App extends React.Component {
 
     //   //sunburst();
   }
-  updateChartOne = (data) => {
+
+  updateChartOne(data) {
     let ideation = 0;
     let development = 0;
     let production = 0;
@@ -761,16 +768,16 @@ class App extends React.Component {
       .enter()
       .append("text")
       .text(function (d) {
-        return ((d.value / total) * 100).toPrecision(3) + " %";
+        return (Number.parseInt(d.value / total * 100) ) + " %";
       })
       .attr("transform", function (d) {
         return "translate(" + arcGenerator.centroid(d) + ")";
       })
       .style("text-anchor", "middle")
       .style("font-size", 13);
-  };
+  }
 
-  updateChartTwo = (arg) => {
+  updateChartTwo(arg) {
     const dataUpdated = (data) => {
       let capabilities = [];
 
@@ -1003,89 +1010,106 @@ class App extends React.Component {
       key: key,
       element: "stacked-bar",
     });
-  };
-  updateChartThree = (newData) => {
-    document.querySelector("#viz").innerHTML = "";
+  }
+  updateChartThree(d) {
+    var d3 = window.d3;
 
-    function barChart(selector) {
-      let svg = window.d3.select(selector),
-        margin = { top: 20, right: 20, bottom: 30, left: 50 },
-        width = +svg.attr("width") - margin.left - margin.right,
-        height = +svg.attr("height") - margin.top - margin.bottom,
-        g = svg
-          .append("g")
-          .attr(
-            "transform",
-            "translate(" + margin.left + "," + margin.top + ")"
-          );
+    var margin = { top: 10, right: 20, bottom: 30, left: 40 },
+      width = 240 - margin.left - margin.right,
+      height = 200 - margin.top - margin.bottom;
 
-      g.append("g").attr("class", "x axis");
+    // append the svg object to the body of the page
+    var svg = d3
+      .select("#viz")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      
+      .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-      g.append("g").attr("class", "y axis");
-
-      const renderNewData = (d) => {
-        let final = [];
-        for (let i = 0; i < d.length; i++) {
-          let foundItem = final.find(
-            (e) => e.label === d[i].solutionTechnologiesUsed
-          );
-          console.log("ffff" + foundItem);
-          if (foundItem) {
-            const filteredArry = final.filter(
-              (e) => e.label !== d[i].solutionTechnologiesUsed
-            );
-            foundItem.total = foundItem.total + 1;
-            final = filteredArry.concat(foundItem);
-          } else {
-            final.push({ label: d[i].solutionTechnologiesUsed, total: 1 });
-          }
-        }
-        return final;
+    // Parse the Data
+    let actData = [];
+    this.state.solutionTechnologiesUsed.forEach((so) => {
+      let buf = {
+        Ideation: 0,
+        Development: 0,
+        Production: 0,
+        Retired: 0,
+        solution: so,
       };
+      realData.forEach((d) => {
+        if (d.solutionTechnologiesUsed == so) buf[d.phase] += 1;
+      });
 
-      let myData = renderNewData(newData);
-      console.log(myData);
+      actData.push(buf);
+    });
+    console.log(actData, "actData");
+    let data = actData;
+    // List of subgroups = header of the csv files = soil condition here
+    var subgroups = this.state.phase;
 
-      let x = window.d3
-        .scaleBand()
-        .padding(0.2)
-        .range([0, width - 1]);
+    // List of groups = species here = value of the first column called group -> I show them on the X axis
+    var groups = this.state.solutionTechnologiesUsed;
 
-      let y = window.d3.scaleLinear().range([height, 0]);
+    // Add X axis
+    var x = d3.scaleBand().domain(groups).range([0, width]).padding([0.1]);
+    svg
+      .append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x).tickSizeOuter(0))
+      .selectAll("text")
+    .attr("y", 0)
+    .attr("x", 9)
+    .attr("dy", ".30em")
+    .attr("transform", "rotate(35)")
+    .style("font-size", "10px")
+    .style("text-anchor", "start")
+    ;
 
-      function update(myData) {
-        x.domain(myData.map((d) => d.label));
-        y.domain([0, window.d3.max(myData, (d) => d.total)]);
+    // Add Y axis
+    var y = d3.scaleLinear().domain([0, 5]).range([height, 0]);
+    svg.append("g").call(d3.axisLeft(y));
 
-        let points = g.selectAll(".point").data(myData); //update
+    // color palette = one color per subgroup
+    var color = d3
+      .scaleOrdinal()
+      .domain(subgroups)
+      .range(["yellow", "orange", "green", "red"]);
 
-        let pointsEnter = points.enter().append("rect").attr("class", "point");
+    //stack the data? --> stack per subgroup
+    var stackedData = d3.stack().keys(subgroups)(data);
 
-        points
-          .merge(pointsEnter) //Enter + Update
-          .attr("x", (d) => x(d.label))
-          .attr("y", (d) => y(d.total))
-          .attr("width", (d) => x.bandwidth())
-          .attr("height", (d) => height - y(d.total))
-
-          .style("fill", "steelblue");
-
-        points.exit().remove();
-
-        g.select(".x.axis")
-          .call(window.d3.axisBottom(x))
-          .attr("transform", "translate(0, " + height + ")")
-          .style("font-size", "10px");
-
-        g.select(".y.axis").call(window.d3.axisLeft(y));
-      }
-
-      update(myData);
-    }
-
-    barChart("#viz");
-  };
-  updateChartFour = (data) => {
+    // Show the bars
+    svg
+      .append("g")
+      .selectAll("g")
+      // Enter in the stack data = loop key per key = group per group
+      .data(stackedData)
+      .enter()
+      .append("g")
+      .attr("fill", function (d) {
+        return color(d.key);
+      })
+      .selectAll("rect")
+      // enter a second time = loop subgroup per subgroup to add all rectangles
+      .data(function (d) {
+        return d;
+      })
+      .enter()
+      .append("rect")
+      .attr("x", function (d) {
+        return x(d.data.solution);
+      })
+      .attr("y", function (d) {
+        return y(d[1]);
+      })
+      .attr("height", function (d) {
+        return y(d[0]) - y(d[1]);
+      })
+      .attr("width", x.bandwidth());
+  }
+  updateChartFour(data) {
     var d3 = window.d3;
     var margin = { top: 10, right: 30, bottom: 30, left: 60 },
       width = 240 - margin.left - margin.right,
@@ -1144,7 +1168,7 @@ class App extends React.Component {
       console.log("Month", months[dt.getMonth()]);
       let mon = dt.getMonth() + 1;
       lin.forEach((r) => {
-        if (r.month == mon) {
+        if (r.month === mon) {
           //console.log('here')
           r.value += 1;
         }
@@ -1193,106 +1217,233 @@ class App extends React.Component {
           .line()
           .x(function (d) {
             console.log("m----", d.month);
-            return x(d.month);
+            return x(d.month+' ');
           })
           .y(function (d) {
             return y(d.value);
           })
       )
       .style("font-size", "2px");
-  };
+  }
 
   fetchSunChartData(data) {
-    let res = {
-      name: "Projects",
-      children: [
-        { name: "Line of Business", children: [], size: 3000 },
-        { name: "Phase", children: [], size: 3000 },
-        { name: "Solutiontech.", children: [], size: 3000 },
-        { name: "Capabilities", children: [], size: 3000 },
-      ],
-    };
+    let res = { name: "", children: [] };
     let lob = this.state.lob;
     let phase = this.state.phase;
     let sols = this.state.solutionTechnologiesUsed;
     let caps = this.state.capabilities;
-
-    lob.forEach((l) => {
-      res.children[0].children.push({
-        name: l,
-        children: [],
-        size: 500000,
-      });
+    lob.forEach((line) => {
+      res.children.push({ name: line, children: [], rec: line });
     });
-
-    phase.forEach((l) => {
-      res.children[1].children.push({
-        name: l,
-        children: [],
-        size: 500000,
+    console.log("LOO", res);
+    for (let i = 0; i < lob.length; i++) {
+      phase.forEach((ph) => {
+        res.children[i].children.push({ name: ph, rec: ph, children: [] });
       });
-    });
-
-    sols.forEach((l) => {
-      res.children[2].children.push({
-        name: l,
-        children: [],
-        size: 500000,
+    }
+    for (let i = 0; i < lob.length; i++) {
+      phase.forEach((ph) => {
+        res.children[i].children.push({ name: ph, rec: ph, children: [] });
       });
-    });
-
-    caps.forEach((l) => {
-      res.children[3].children.push({
-        name: l,
-        children: [],
-        size: 500000,
-      });
-    });
+    }
+    for (let i = 0; i < lob.length; i++) {
+      for (let j = 0; j < phase.length; j++) {
+        sols.forEach((sol) => {
+          res.children[i].children[j].children.push({
+            name: sol,
+            rec: sol,
+            children: [],
+          });
+        });
+      }
+    }
+    for (let i = 0; i < lob.length; i++) {
+      for (let j = 0; j < phase.length; j++) {
+        for (let k = 0; k < sols.length; k++) {
+          caps.forEach((cap) => {
+            res.children[i].children[j].children[k].children.push({
+              name: cap,
+              rec: cap,
+              children: [],
+            });
+          });
+        }
+      }
+    }
+    for (let i = 0; i < lob.length; i++) {
+      for (let j = 0; j < phase.length; j++) {
+        for (let k = 0; k < sols.length; k++) {
+          for (let l = 0; l < caps.length; l++) {
+            for (let m = 0; m < data.length; m++) {
+              if (
+                data[m].lineOfBusiness == lob[i] &&
+                data[m].phase == phase[j] &&
+                data[m].solutionTechnologiesUsed == sols[k] &&
+                data[m].capabilities == caps[l]
+              ) {
+                res.children[i].children[j].children[k].children[
+                  l
+                ].children.push({
+                  name: data[m].name,
+                  rec: data[m],
+                  size: 1,
+                  filteredData: data,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
 
     for (let i = 0; i < lob.length; i++) {
-      data.forEach((rec) => {
-        if (rec.lineOfBusiness == lob[i]) {
-          res.children[0].children[i].children.push({
-            name: rec.name,
-            children: [],
-            size: 50000 * i * Math.random(),
+      {
+        let result = mockData.filter((e) => e.lineOfBusiness === lob[i]);
+
+        res.children[i].filteredData = result;
+        res.children[i].size = result.length;
+        for (let j = 0; j < phase.length; j++) {
+          let result1 = [];
+          mockData.forEach((a) => {
+            if (a.lineOfBusiness === lob[i] && a.phase === phase[j])
+              result1.push(a);
           });
+          ///console.log('kkk',result1)
+          res.children[i].children[j].filteredData = result1;
+          res.children[i].children[j].size = result1.length;
+          for (let k = 0; k < sols.length; k++) {
+            let result2 = [];
+            mockData.forEach((b) => {
+              if (
+                b.lineOfBusiness === lob[i] &&
+                b.phase === phase[j] &&
+                b.solutionTechnologiesUsed === sols[k]
+              )
+                result2.push(b);
+            });
+            ///console.log('kkk',result1)
+            res.children[i].children[j].children[k].filteredData = result1;
+            res.children[i].children[j].children[k].size = result2.length;
+            for (let l = 0; l < caps.length; l++) {
+              let result3 = [];
+              mockData.forEach((c) => {
+                if (
+                  c.lineOfBusiness === lob[i] &&
+                  c.phase === phase[j] &&
+                  c.solutionTechnologiesUsed === sols[k] &&
+                  c.capabilities === caps[l]
+                )
+                  result3.push(c);
+              });
+              ///console.log('kkk',result1)
+              res.children[i].children[j].children[k].children[
+                l
+              ].filteredData = result3;
+              res.children[i].children[j].children[k].children[l].size =
+                result3.length;
+            }
+          }
         }
-      });
+      }
     }
-    for (let i = 0; i < phase.length; i++) {
-      data.forEach((rec) => {
-        if (rec.phase == phase[i]) {
-          res.children[1].children[i].children.push({
-            name: rec.name,
-            children: [],
-            size: 50000 * i * Math.random(),
-          });
-        }
-      });
-    }
-    for (let i = 0; i < sols.length; i++) {
-      data.forEach((rec) => {
-        if (rec.solustionTechnologiesUsed == sols[i]) {
-          res.children[2].children[i].children.push({
-            name: rec.name,
-            children: [],
-            size: 50000 * i * Math.random(),
-          });
-        }
-      });
-    }
-    for (let i = 0; i < caps.length; i++) {
-      data.forEach((rec) => {
-        if (rec.capabilities == caps[i]) {
-          res.children[3].children[i].children.push({
-            name: rec.name,
-            children: [],
-            size: 50000 * i * Math.random(),
-          });
-        }
-      });
-    }
+    // res.children.forEach(pro=>{
+    // pro.size=pro.children.length;
+    // pro.children.forEach(pro1=>{
+    //   pro1.size=pro1.children.length;
+    //   pro1.children.forEach(pro2=>{
+    //     pro2.size=pro2.children.length;
+    //     pro2.children.forEach(pro3=>{
+    //       pro3.size=pro3.children.length;
+
+    //     })
+    //   })
+    // })
+    // });
+
+    // lob.forEach((l) => {
+    //   res.children[0].children.push({
+    //     name: l,
+    //     children: [],
+    //     sortedBy:'lob',
+    //     size: 500000,
+    //   });
+    // });
+
+    // phase.forEach((l) => {
+    //   res.children[1].children.push({
+    //     name: l,
+    //     children: [],
+    //     size: 500000,
+    //     sortedBy:'phase',
+    //   });
+    // });
+
+    // sols.forEach((l) => {
+    //   res.children[2].children.push({
+    //     name: l,
+    //     children: [],
+    //     size: 500000,
+    //     sortedBy:'sols',
+    //   });
+    // });
+
+    // caps.forEach((l) => {
+    //   res.children[3].children.push({
+    //     name: l,
+    //     children: [],
+    //     size: 500000,
+    //     sortedBy:'caps',
+    //   });
+    // });
+
+    // for (let i = 0; i < lob.length; i++) {
+    //   data.forEach((rec) => {
+    //     if (rec.lineOfBusiness === lob[i]) {
+    //       res.children[0].children[i].children.push({
+    //         name: rec.name,
+    //         children: [],
+    //         size: 50000 * i * Math.random(),
+    //         rec: rec
+    //       });
+    //     }
+    //   });
+    // }
+    // for (let i = 0; i < phase.length; i++) {
+    //   data.forEach((rec) => {
+    //     if (rec.phase === phase[i]) {
+    //       res.children[1].children[i].children.push({
+    //         name: rec.name,
+    //         children: [],
+    //         size: 50000 * i * Math.random(),
+    //         rec: rec
+    //       });
+    //     }
+    //   });
+    // }
+    // for (let i = 0; i < sols.length; i++) {
+    //   data.forEach((rec) => {
+    //     if (rec.solutionTechnologiesUsed === sols[i]) {
+    //       res.children[2].children[i].children.push({
+    //         name: rec.name,
+    //         children: [],
+    //         size: 50000 * i * Math.random(),
+    //         rec: rec
+    //       });
+    //     }
+    //   });
+    // }
+    // for (let i = 0; i < caps.length; i++) {
+    //   data.forEach((rec) => {
+    //     if (rec.capabilities === caps[i]) {
+    //       res.children[3].children[i].children.push({
+    //         name: rec.name,
+    //         children: [],
+    //         size: 50000 * i * Math.random(),
+    //         rec: rec
+    //       });
+    //     }
+    //   });
+    // }
     sundata = res;
   }
   sunChartD3(data) {
@@ -1311,7 +1462,7 @@ class App extends React.Component {
       .range([0, 2 * Math.PI])
       .clamp(true);
 
-    const y = d3.scaleSqrt().range([maxRadius * 0.1, maxRadius]);
+    const y = d3.scaleSqrt().range([maxRadius * 0.001, maxRadius]);
 
     const color = d3.scaleOrdinal(d3.schemeCategory20);
 
@@ -1321,8 +1472,8 @@ class App extends React.Component {
       .arc()
       .startAngle((d) => x(d.x0))
       .endAngle((d) => x(d.x1))
-      .innerRadius((d) => Math.max(0, y(d.y0)))
-      .outerRadius((d) => Math.max(0, y(d.y1)));
+      .innerRadius((d) => Math.max(3, y(d.y0)))
+      .outerRadius((d) => Math.max(5, y(d.y1)));
 
     const middleArcLine = (d) => {
       const halfPi = Math.PI / 2;
@@ -1356,7 +1507,9 @@ class App extends React.Component {
       .style("width", "700")
       .style("height", "700")
       .attr("viewBox", `${-width / 2} ${-height / 2} ${width} ${height}`)
-      .on("click", () => focusOn()); // Reset zoom on canvas click
+      .on("click", (event) => {
+        focusOn();
+      }); // Reset zoom on canvas click
 
     //this.fetchSunChartData("jj");
 
@@ -1431,17 +1584,29 @@ class App extends React.Component {
 
       transition.selectAll("path.main-arc").attrTween("d", (d) => () => arc(d));
 
-      transition
-        .selectAll("path.hidden-arc")
-        .attrTween("d", (d) => () => middleArcLine(d));
+      transition.selectAll("path.hidden-arc").attrTween("d", (d) => () => {
+        middleArcLine(d);
+      });
 
       transition
         .selectAll("text")
         .attrTween("display", (d) => () => (textFits(d) ? null : "none"));
+      //console.log(d);
 
+      ////refreshhhhhhh
+      // realData=d.children;
+      refreshBurst(d);
       moveStackToFront(d);
 
       //
+
+     function refreshBurst(d) {
+        realData = d.data.filteredData;
+
+        // for(let i=0;i<d.height;i++ ){
+        console.log("This is refiltered data", realData);
+        // }
+      }
 
       function moveStackToFront(elD) {
         svg
@@ -1455,340 +1620,342 @@ class App extends React.Component {
           });
       }
     }
+    this.setState({ data: realData });
+    //this.filterOut();
   }
 
-  updateChartFive = (dat) => {
-    let ddata = [
-      ["account-account-account-account-account-account", 5],
-      ["account-account-account-account-account-end", 10],
-    ];
+  // updateChartFive = (dat) => {
+  //   let ddata = [
+  //     ["account-account-account-account-account-account", 5],
+  //     ["account-account-account-account-account-end", 10],
+  //   ];
 
-    document.querySelector("#chart").innerHTML =
-      "<div id='explanation' style={{visibility:'hidden',display:'block'}}><span id='percentage'></span><br/>-</div>";
+  //   document.querySelector("#chart").innerHTML =
+  //     "<div id='explanation' style={{visibility:'hidden',display:'block'}}><span id='percentage'></span><br/>-</div>";
 
-    function sunburst() {
-      // Dimensions of sunburst.
-      var width = 300;
-      var height = 300;
-      var radius = Math.min(width, height) / 2;
+  //   function sunburst() {
+  //     // Dimensions of sunburst.
+  //     var width = 300;
+  //     var height = 300;
+  //     var radius = Math.min(width, height) / 2;
 
-      // Breadcrumb dimensions: width, height, spacing, width of tip/tail.
-      var b = {
-        w: 75,
-        h: 30,
-        s: 3,
-        t: 10,
-      };
+  //     // Breadcrumb dimensions: width, height, spacing, width of tip/tail.
+  //     var b = {
+  //       w: 75,
+  //       h: 30,
+  //       s: 3,
+  //       t: 10,
+  //     };
 
-      // Mapping of step names to colors.
-      var colors = {
-        home: "#5687d1",
-        product: "#7b615c",
-        search: "#de783b",
-        account: "#6ab975",
-        other: "#a173d1",
-        end: "#bbbbbb",
-      };
+  //     // Mapping of step names to colors.
+  //     var colors = {
+  //       home: "#5687d1",
+  //       product: "#7b615c",
+  //       search: "#de783b",
+  //       account: "#6ab975",
+  //       other: "#a173d1",
+  //       end: "#bbbbbb",
+  //     };
 
-      // Total size of all segments; we set this later, after loading the data.
-      var totalSize = 0;
+  //     // Total size of all segments; we set this later, after loading the data.
+  //     var totalSize = 0;
 
-      var vis = window.d3
-        .select("#chart")
-        .append("svg:svg")
-        .attr("width", width)
-        .attr("height", height)
-        .append("svg:g")
-        .attr("id", "container")
-        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+  //     var vis = window.d3
+  //       .select("#chart")
+  //       .append("svg:svg")
+  //       .attr("width", width)
+  //       .attr("height", height)
+  //       .append("svg:g")
+  //       .attr("id", "container")
+  //       .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
 
-      var partition = window.d3
-        .partition()
-        .size([2 * Math.PI, radius * radius]);
+  //     var partition = window.d3
+  //       .partition()
+  //       .size([2 * Math.PI, radius * radius]);
 
-      var arc = window.d3
-        .arc()
-        .startAngle(function (d) {
-          return d.x0;
-        })
-        .endAngle(function (d) {
-          return d.x1;
-        })
-        .innerRadius(function (d) {
-          return Math.sqrt(d.y0);
-        })
-        .outerRadius(function (d) {
-          return Math.sqrt(d.y1);
-        });
+  //     var arc = window.d3
+  //       .arc()
+  //       .startAngle(function (d) {
+  //         return d.x0;
+  //       })
+  //       .endAngle(function (d) {
+  //         return d.x1;
+  //       })
+  //       .innerRadius(function (d) {
+  //         return Math.sqrt(d.y0);
+  //       })
+  //       .outerRadius(function (d) {
+  //         return Math.sqrt(d.y1);
+  //       });
 
-      // Use window.d3.text and window.d3.csvParseRows so that we do not need to have a header
-      // row, and can receive the csv as an array of arrays.
+  //     // Use window.d3.text and window.d3.csvParseRows so that we do not need to have a header
+  //     // row, and can receive the csv as an array of arrays.
 
-      var csv = ddata;
-      var json = buildHierarchy(csv);
-      createVisualization(json);
+  //     var csv = ddata;
+  //     var json = buildHierarchy(csv);
+  //     createVisualization(json);
 
-      // Main function to draw and set up the visualization, once we have the data.
-      function createVisualization(json) {
-        // Basic setup of page elements.
-        initializeBreadcrumbTrail();
-        // drawLegend();
-        // window.d3.select("#togglelegend").on("click", toggleLegend);
+  //     // Main function to draw and set up the visualization, once we have the data.
+  //     function createVisualization(json) {
+  //       // Basic setup of page elements.
+  //       initializeBreadcrumbTrail();
+  //       // drawLegend();
+  //       // window.d3.select("#togglelegend").on("click", toggleLegend);
 
-        // Bounding circle underneath the sunburst, to make it easier to detect
-        // when the mouse leaves the parent g.
-        vis.append("svg:circle").attr("r", radius).style("opacity", 0);
+  //       // Bounding circle underneath the sunburst, to make it easier to detect
+  //       // when the mouse leaves the parent g.
+  //       vis.append("svg:circle").attr("r", radius).style("opacity", 0);
 
-        // Turn the data into a window.d3 hierarchy and calculate the sums.
-        var root = window.d3
-          .hierarchy(json)
-          .sum(function (d) {
-            return d.size;
-          })
-          .sort(function (a, b) {
-            return b.value - a.value;
-          });
+  //       // Turn the data into a window.d3 hierarchy and calculate the sums.
+  //       var root = window.d3
+  //         .hierarchy(json)
+  //         .sum(function (d) {
+  //           return d.size;
+  //         })
+  //         .sort(function (a, b) {
+  //           return b.value - a.value;
+  //         });
 
-        // For efficiency, filter nodes to keep only those large enough to see.
-        var nodes = partition(root)
-          .descendants()
-          .filter(function (d) {
-            return d.x1 - d.x0 > 0.005; // 0.005 radians = 0.29 degrees
-          });
+  //       // For efficiency, filter nodes to keep only those large enough to see.
+  //       var nodes = partition(root)
+  //         .descendants()
+  //         .filter(function (d) {
+  //           return d.x1 - d.x0 > 0.005; // 0.005 radians = 0.29 degrees
+  //         });
 
-        var path = vis
-          .data([json])
-          .selectAll("#chart path")
-          .data(nodes)
-          .enter()
-          .append("svg:path")
-          .attr("display", function (d) {
-            return d.depth ? null : "none";
-          })
-          .attr("d", arc)
-          .attr("fill-rule", "evenodd")
-          .style("fill", function (d) {
-            return colors[d.data.name];
-          })
-          .style("opacity", 1)
-          .on("mouseover", mouseover);
+  //       var path = vis
+  //         .data([json])
+  //         .selectAll("#chart path")
+  //         .data(nodes)
+  //         .enter()
+  //         .append("svg:path")
+  //         .attr("display", function (d) {
+  //           return d.depth ? null : "none";
+  //         })
+  //         .attr("d", arc)
+  //         .attr("fill-rule", "evenodd")
+  //         .style("fill", function (d) {
+  //           return colors[d.data.name];
+  //         })
+  //         .style("opacity", 1)
+  //         .on("mouseover", mouseover);
 
-        // Add the mouseleave handler to the bounding circle.
-        window.d3.select("#container").on("mouseleave", mouseleave);
+  //       // Add the mouseleave handler to the bounding circle.
+  //       window.d3.select("#container").on("mouseleave", mouseleave);
 
-        // Get total size of the tree = value of root node from partition.
-        totalSize = path.datum().value;
-      }
+  //       // Get total size of the tree = value of root node from partition.
+  //       totalSize = path.datum().value;
+  //     }
 
-      // Fade all but the current sequence, and show it in the breadcrumb trail.
-      function mouseover(d) {
-        var percentage = ((100 * d.value) / totalSize).toPrecision(3);
-        var percentageString = percentage + "%";
-        if (percentage < 0.1) {
-          percentageString = "< 0.1%";
-        }
+  //     // Fade all but the current sequence, and show it in the breadcrumb trail.
+  //     function mouseover(d) {
+  //       var percentage = ((100 * d.value) / totalSize).toPrecision(3);
+  //       var percentageString = percentage + "%";
+  //       if (percentage < 0.1) {
+  //         percentageString = "< 0.1%";
+  //       }
 
-        window.d3.select("#chart #percentage").text(percentageString);
+  //       window.d3.select("#chart #percentage").text(percentageString);
 
-        window.d3.select("#chart #explanation").style("visibility", "");
+  //       window.d3.select("#chart #explanation").style("visibility", "");
 
-        var sequenceArray = d.ancestors().reverse();
-        sequenceArray.shift(); // remove root node from the array
-        updateBreadcrumbs(sequenceArray, percentageString);
+  //       var sequenceArray = d.ancestors().reverse();
+  //       sequenceArray.shift(); // remove root node from the array
+  //       updateBreadcrumbs(sequenceArray, percentageString);
 
-        // Fade all the segments.
-        window.d3.selectAll("#chart path").style("opacity", 0.3);
+  //       // Fade all the segments.
+  //       window.d3.selectAll("#chart path").style("opacity", 0.3);
 
-        // Then highlight only those that are an ancestor of the current segment.
-        vis
-          .selectAll("path")
-          .filter(function (node) {
-            return sequenceArray.indexOf(node) >= 0;
-          })
-          .style("opacity", 1);
-      }
+  //       // Then highlight only those that are an ancestor of the current segment.
+  //       vis
+  //         .selectAll("path")
+  //         .filter(function (node) {
+  //           return sequenceArray.indexOf(node) >= 0;
+  //         })
+  //         .style("opacity", 1);
+  //     }
 
-      // Restore everything to full opacity when moving off the visualization.
-      function mouseleave(d) {
-        // Hide the breadcrumb trail
-        window.d3.select("#trail").style("visibility", "hidden");
+  //     // Restore everything to full opacity when moving off the visualization.
+  //     function mouseleave(d) {
+  //       // Hide the breadcrumb trail
+  //       window.d3.select("#trail").style("visibility", "hidden");
 
-        // Deactivate all segments during transition.
-        window.d3.selectAll("#chart path").on("mouseover", null);
+  //       // Deactivate all segments during transition.
+  //       window.d3.selectAll("#chart path").on("mouseover", null);
 
-        // Transition each segment to full opacity and then reactivate it.
-        window.d3
-          .selectAll("#chart path")
-          .transition()
-          .duration(1000)
-          .style("opacity", 1)
-          .on("end", function () {
-            window.d3.select(this).on("mouseover", mouseover);
-          });
+  //       // Transition each segment to full opacity and then reactivate it.
+  //       window.d3
+  //         .selectAll("#chart path")
+  //         .transition()
+  //         .duration(1000)
+  //         .style("opacity", 1)
+  //         .on("end", function () {
+  //           window.d3.select(this).on("mouseover", mouseover);
+  //         });
 
-        window.d3.select("#explanation").style("visibility", "hidden");
-      }
+  //       window.d3.select("#explanation").style("visibility", "hidden");
+  //     }
 
-      function initializeBreadcrumbTrail() {
-        // Add the svg area.
-        var trail = window.d3
-          .select("#aad")
-          .append("svg:svg")
-          .attr("width", width)
-          .attr("height", 50)
-          .attr("id", "trail");
-        // Add the label at the end, for the percentage.
-        trail.append("svg:text").attr("id", "endlabel").style("fill", "#000");
-      }
+  //     function initializeBreadcrumbTrail() {
+  //       // Add the svg area.
+  //       var trail = window.d3
+  //         .select("#aad")
+  //         .append("svg:svg")
+  //         .attr("width", width)
+  //         .attr("height", 50)
+  //         .attr("id", "trail");
+  //       // Add the label at the end, for the percentage.
+  //       trail.append("svg:text").attr("id", "endlabel").style("fill", "#000");
+  //     }
 
-      // Generate a string that describes the points of a breadcrumb polygon.
-      function breadcrumbPoints(d, i) {
-        var points = [];
-        points.push("0,0");
-        points.push(b.w + ",0");
-        points.push(b.w + b.t + "," + b.h / 2);
-        points.push(b.w + "," + b.h);
-        points.push("0," + b.h);
-        if (i > 0) {
-          // Leftmost breadcrumb; don't include 6th vertex.
-          points.push(b.t + "," + b.h / 2);
-        }
-        return points.join(" ");
-      }
+  //     // Generate a string that describes the points of a breadcrumb polygon.
+  //     function breadcrumbPoints(d, i) {
+  //       var points = [];
+  //       points.push("0,0");
+  //       points.push(b.w + ",0");
+  //       points.push(b.w + b.t + "," + b.h / 2);
+  //       points.push(b.w + "," + b.h);
+  //       points.push("0," + b.h);
+  //       if (i > 0) {
+  //         // Leftmost breadcrumb; don't include 6th vertex.
+  //         points.push(b.t + "," + b.h / 2);
+  //       }
+  //       return points.join(" ");
+  //     }
 
-      // Update the breadcrumb trail to show the current sequence and percentage.
-      function updateBreadcrumbs(nodeArray, percentageString) {
-        // Data join; key function combines name and depth (= position in sequence).
-        var trail = window.d3
-          .select("#trail")
-          .selectAll("g")
-          .data(nodeArray, function (d) {
-            return d.data.name + d.depth;
-          });
+  //     // Update the breadcrumb trail to show the current sequence and percentage.
+  //     function updateBreadcrumbs(nodeArray, percentageString) {
+  //       // Data join; key function combines name and depth (= position in sequence).
+  //       var trail = window.d3
+  //         .select("#trail")
+  //         .selectAll("g")
+  //         .data(nodeArray, function (d) {
+  //           return d.data.name + d.depth;
+  //         });
 
-        // Remove exiting nodes.
-        trail.exit().remove();
+  //       // Remove exiting nodes.
+  //       trail.exit().remove();
 
-        // Add breadcrumb and label for entering nodes.
-        var entering = trail.enter().append("svg:g");
+  //       // Add breadcrumb and label for entering nodes.
+  //       var entering = trail.enter().append("svg:g");
 
-        entering
-          .append("svg:polygon")
-          .attr("points", breadcrumbPoints)
-          .style("fill", function (d) {
-            return colors[d.data.name];
-          });
+  //       entering
+  //         .append("svg:polygon")
+  //         .attr("points", breadcrumbPoints)
+  //         .style("fill", function (d) {
+  //           return colors[d.data.name];
+  //         });
 
-        entering
-          .append("svg:text")
-          .attr("x", (b.w + b.t) / 2)
-          .attr("y", b.h / 2)
-          .attr("dy", "0.35em")
-          .attr("text-anchor", "middle")
-          .text(function (d) {
-            return d.data.name;
-          });
+  //       entering
+  //         .append("svg:text")
+  //         .attr("x", (b.w + b.t) / 2)
+  //         .attr("y", b.h / 2)
+  //         .attr("dy", "0.35em")
+  //         .attr("text-anchor", "middle")
+  //         .text(function (d) {
+  //           return d.data.name;
+  //         });
 
-        // Merge enter and update selections; set position for all nodes.
-        entering.merge(trail).attr("transform", function (d, i) {
-          return "translate(" + i * (b.w + b.s) + ", 0)";
-        });
+  //       // Merge enter and update selections; set position for all nodes.
+  //       entering.merge(trail).attr("transform", function (d, i) {
+  //         return "translate(" + i * (b.w + b.s) + ", 0)";
+  //       });
 
-        // Now move and update the percentage at the end.
-        window.d3
-          .select("#trail")
-          .select("#endlabel")
-          .attr("x", (nodeArray.length + 0.5) * (b.w + b.s))
-          .attr("y", b.h / 2)
-          .attr("dy", "0.35em")
-          .attr("text-anchor", "middle")
-          .text(percentageString);
+  //       // Now move and update the percentage at the end.
+  //       window.d3
+  //         .select("#trail")
+  //         .select("#endlabel")
+  //         .attr("x", (nodeArray.length + 0.5) * (b.w + b.s))
+  //         .attr("y", b.h / 2)
+  //         .attr("dy", "0.35em")
+  //         .attr("text-anchor", "middle")
+  //         .text(percentageString);
 
-        // Make the breadcrumb trail visible, if it's hidden.
-        window.d3.select("#trail").style("visibility", "");
-      }
+  //       // Make the breadcrumb trail visible, if it's hidden.
+  //       window.d3.select("#trail").style("visibility", "");
+  //     }
 
-      // function drawLegend() {
+  //     // function drawLegend() {
 
-      // // Dimensions of legend item: width, height, spacing, radius of rounded rect.
-      // var li = {
-      //     w: 75, h: 30, s: 3, r: 3
-      // };
+  //     // // Dimensions of legend item: width, height, spacing, radius of rounded rect.
+  //     // var li = {
+  //     //     w: 75, h: 30, s: 3, r: 3
+  //     // };
 
-      // var legend = window.d3.select("#legend").append("svg:svg")
-      //     .attr("width", li.w)
-      //     .attr("height", window.d3.keys(colors).length * (li.h + li.s));
+  //     // var legend = window.d3.select("#legend").append("svg:svg")
+  //     //     .attr("width", li.w)
+  //     //     .attr("height", window.d3.keys(colors).length * (li.h + li.s));
 
-      // var g = legend.selectAll("g")
-      //     .data(window.d3.entries(colors))
-      //     .enter().append("svg:g")
-      //     .attr("transform", function(d, i) {
-      //             return "translate(0," + i * (li.h + li.s) + ")";
-      //         });
+  //     // var g = legend.selectAll("g")
+  //     //     .data(window.d3.entries(colors))
+  //     //     .enter().append("svg:g")
+  //     //     .attr("transform", function(d, i) {
+  //     //             return "translate(0," + i * (li.h + li.s) + ")";
+  //     //         });
 
-      // g.append("svg:rect")
-      //     .attr("rx", li.r)
-      //     .attr("ry", li.r)
-      //     .attr("width", li.w)
-      //     .attr("height", li.h)
-      //     .style("fill", function(d) { return d.value; });
+  //     // g.append("svg:rect")
+  //     //     .attr("rx", li.r)
+  //     //     .attr("ry", li.r)
+  //     //     .attr("width", li.w)
+  //     //     .attr("height", li.h)
+  //     //     .style("fill", function(d) { return d.value; });
 
-      // g.append("svg:text")
-      //     .attr("x", li.w / 2)
-      //     .attr("y", li.h / 2)
-      //     .attr("dy", "0.35em")
-      //     .attr("text-anchor", "middle")
-      //     .text(function(d) { return d.key; });
-      // }
+  //     // g.append("svg:text")
+  //     //     .attr("x", li.w / 2)
+  //     //     .attr("y", li.h / 2)
+  //     //     .attr("dy", "0.35em")
+  //     //     .attr("text-anchor", "middle")
+  //     //     .text(function(d) { return d.key; });
+  //     // }
 
-      // Take a 2-column CSV and transform it into a hierarchical structure suitable
-      // for a partition layout. The first column is a sequence of step names, from
-      // root to leaf, separated by hyphens. The second column is a count of how
-      // often that sequence occurred.
-      function buildHierarchy(csv) {
-        var root = { name: "root", children: [] };
-        for (var i = 0; i < csv.length; i++) {
-          var sequence = csv[i][0];
-          var size = +csv[i][1];
-          if (isNaN(size)) {
-            // e.g. if this is a header row
-            continue;
-          }
-          var parts = sequence.split("-");
-          var currentNode = root;
-          for (var j = 0; j < parts.length; j++) {
-            var children = currentNode["children"];
-            var nodeName = parts[j];
-            var childNode;
-            if (j + 1 < parts.length) {
-              // Not yet at the end of the sequence; move down the tree.
-              var foundChild = false;
-              for (var k = 0; k < children.length; k++) {
-                if (children[k]["name"] === nodeName) {
-                  childNode = children[k];
-                  foundChild = true;
-                  break;
-                }
-              }
-              // If we don't already have a child node for this branch, create it.
-              if (!foundChild) {
-                childNode = { name: nodeName, children: [] };
-                children.push(childNode);
-              }
-              currentNode = childNode;
-            } else {
-              // Reached the end of the sequence; create a leaf node.
-              childNode = { name: nodeName, size: size };
-              children.push(childNode);
-            }
-          }
-        }
-        return root;
-      }
-    }
+  //     // Take a 2-column CSV and transform it into a hierarchical structure suitable
+  //     // for a partition layout. The first column is a sequence of step names, from
+  //     // root to leaf, separated by hyphens. The second column is a count of how
+  //     // often that sequence occurred.
+  //     function buildHierarchy(csv) {
+  //       var root = { name: "root", children: [] };
+  //       for (var i = 0; i < csv.length; i++) {
+  //         var sequence = csv[i][0];
+  //         var size = +csv[i][1];
+  //         if (isNaN(size)) {
+  //           // e.g. if this is a header row
+  //           continue;
+  //         }
+  //         var parts = sequence.split("-");
+  //         var currentNode = root;
+  //         for (var j = 0; j < parts.length; j++) {
+  //           var children = currentNode["children"];
+  //           var nodeName = parts[j];
+  //           var childNode;
+  //           if (j + 1 < parts.length) {
+  //             // Not yet at the end of the sequence; move down the tree.
+  //             var foundChild = false;
+  //             for (var k = 0; k < children.length; k++) {
+  //               if (children[k]["name"] === nodeName) {
+  //                 childNode = children[k];
+  //                 foundChild = true;
+  //                 break;
+  //               }
+  //             }
+  //             // If we don't already have a child node for this branch, create it.
+  //             if (!foundChild) {
+  //               childNode = { name: nodeName, children: [] };
+  //               children.push(childNode);
+  //             }
+  //             currentNode = childNode;
+  //           } else {
+  //             // Reached the end of the sequence; create a leaf node.
+  //             childNode = { name: nodeName, size: size };
+  //             children.push(childNode);
+  //           }
+  //         }
+  //       }
+  //       return root;
+  //     }
+  //   }
 
-    sunburst();
-  };
+  //   sunburst();
+  // };
   computeKpis(data) {
     let ideationSolutionNumber = 0;
     let developmentSolutionNumber = 0;
@@ -1822,31 +1989,32 @@ class App extends React.Component {
     console.log(lob, phase, solutionTechnologiesUsed, capabilities);
     let result = mockData;
     if (
-      lob == "" &&
-      phase == "" &&
-      solutionTechnologiesUsed == "" &&
-      capabilities == ""
+      lob === "" &&
+      phase === "" &&
+      solutionTechnologiesUsed === "" &&
+      capabilities === ""
     ) {
-      alert("Select at least one filter");
+      if (realData.length == 0) return;
+      //alert("Select at least one filter");
       return;
     }
     if (lob != "") {
-      result = mockData.filter((e) => e.lineOfBusiness == lob);
+      result = mockData.filter((e) => e.lineOfBusiness === lob);
     }
     if (phase != "") {
-      result = result.filter((e) => e.phase == phase);
+      result = result.filter((e) => e.phase === phase);
     }
     if (solutionTechnologiesUsed != "") {
       result = result.filter(
-        (e) => e.solutionTechnologiesUsed == solutionTechnologiesUsed
+        (e) => e.solutionTechnologiesUsed === solutionTechnologiesUsed
       );
     }
     if (capabilities != "") {
-      result = result.filter((e) => e.capabilities == capabilities);
+      result = result.filter((e) => e.capabilities === capabilities);
     }
 
     realData = result;
-    if (result.length == 0) {
+    if (result.length === 0) {
       alert("No matches at all for the filter!! Resetting filters");
       this.resetFilters();
       return;
@@ -1875,8 +2043,10 @@ class App extends React.Component {
       this.computeKpis(mockData);
     }, 1000);
   }
-  updateCharts(data) {
+  updateCharts() {
     // burstDataReady();
+    let data = realData;
+    this.computeKpis(data);
     this.sunChartD3(data);
     //this.plotSunchart();
     this.updateChartOne(data);
@@ -2111,9 +2281,10 @@ class App extends React.Component {
                         <svg width="240" height="200" id="ziz"></svg>
                       </div>
 
-                      <div className="bottom-left">
+                      <div className="bottom-left" id='bottom-one'>
                         <div
                           className="ag-theme-alpine"
+                          id='ag-grid'
                           style={{ height: "160%", width: "100%" }}
                         >
                           <AgGridReact
